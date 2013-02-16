@@ -4,8 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Security.Cryptography;
 using System.IO;
+using KBDocumentConverter.DataAccess;
 
-namespace KBDocumentConverterService.Converters
+namespace KBDocumentConverter.Converters
 {
     public static class EncryptStrings
     {
@@ -14,6 +15,13 @@ namespace KBDocumentConverterService.Converters
         static readonly byte[] _PASSWORD = Encoding.UTF8.GetBytes(_passwordText);
         static readonly byte[] _SALT = Encoding.UTF8.GetBytes(_saltText);
 
+        /// <summary>
+        /// Initialise a symmetric algorithm in the provided algorithm object.
+        /// </summary>
+        /// <param name="algorithm">Object representing a specific cryptographic algorith</param>
+        /// <param name="password">Pass code used to encrypt </param>
+        /// <param name="keyBitLength"></param>
+        /// <returns></returns>
         public static SymmetricAlgorithm InitSymmetric(SymmetricAlgorithm algorithm, string password, int keyBitLength)
         {
             var salt = new byte[] { 1, 2, 23, 234, 37, 48, 134, 63, 248, 4 };
@@ -32,10 +40,10 @@ namespace KBDocumentConverterService.Converters
         }
 
         /// <summary>
-        /// 
+        /// Encrypt plain text to MD5 hash.
         /// </summary>
-        /// <param name="textToConvert"></param>
-        /// <returns></returns>
+        /// <param name="textToConvert">Text to be converted</param>
+        /// <returns>string</returns>
         public static string EncryptToMD5String(string textToConvert)
         {
             StringBuilder stringBuilder = new StringBuilder(textToConvert.Length * 2);
@@ -57,7 +65,7 @@ namespace KBDocumentConverterService.Converters
         /// Encrypts the provided string to an AES encrypted string using the currently 
         /// defined AES KEy.
         /// </summary>
-        /// <param name="textToConvert">string</param>
+        /// <param name="textToConvert">Text to be encrypted</param>
         /// <returns>string</returns>
         public static string EncryptToAESString(string plainText)
         {
@@ -126,22 +134,26 @@ namespace KBDocumentConverterService.Converters
             }
             catch (Exception ex)
             {
-                StreamWriter sw = File.AppendText("C:\\Service.txt");
-                string mess = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
-                sw.WriteLine(mess);
-                sw.Flush();
-                sw.Close();
+                string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                Logger.LogError(message);
             }
 
             return path;
         }
 
+        /// <summary>
+        /// Convert a hex string to a byte array.
+        /// </summary>
+        /// <param name="hex">Hexadecimal encoded string to be converted.</param>
+        /// <returns>byte[]</returns>
         static byte[] HexStringToByteArray(string hex)
         {
             int NumberChars = hex.Length;
             byte[] bytes = new byte[NumberChars / 2];
+
             for (int i = 0; i < NumberChars; i += 2)
                 bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
+
             return bytes;
         }
     }

@@ -5,12 +5,17 @@ using System.Text;
 using System.Reflection;
 using System.Configuration.Install;
 using System.IO;
+using System.ServiceProcess;
+using KBDocumentConverter.DataAccess;
 
 namespace ServiceInstaller
 {
     class Program
     {
-        private static readonly string _servicePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\KBDocumentConverterService.exe";
+        // Path for service to install
+        static readonly string _servicePath = "KBDocumentConverter.exe";
+
+        static readonly long _timeoutMillisecs = 1000;
 
         static void Main(string[] args)
         {         
@@ -18,11 +23,11 @@ namespace ServiceInstaller
             {
                 ManagedInstallerClass.InstallHelper( new string[]{ _servicePath } );
             }
-            catch
+            catch (Exception ex)
             {
-
+                string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                Logger.LogError(message);
             }
-
         }
     }
 }

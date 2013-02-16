@@ -6,20 +6,23 @@ using Microsoft.Office.Interop.Word;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using KBDocumentConverterService.Models;
+using KBDocumentConverter.Models;
 using HtmlAgilityPack;
 using System.Text;
+using KBDocumentConverter.DataAccess;
 
-namespace KBDocumentConverterService.Converters
+namespace KBDocumentConverter.Converters
 {
     public class ConvertToHtml
     {
         // Directory for files converted from Word docs to Html.
-        static readonly string _htmlKnowledgeBaseDir = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)),
+        static readonly string _htmlKnowledgeBaseDir = 
+            Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)),
             "KnowledgebaseFiles\\HTML");
 
         // Directory for Word files to be converted.
-        static readonly string _docKnowledgeBaseDir = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)),
+        static readonly string _docKnowledgeBaseDir =
+            Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)),
             "KnowledgebaseFiles\\DOCS");
 
         // Directory for holding the Content List which represents the knowledgebase
@@ -28,8 +31,6 @@ namespace KBDocumentConverterService.Converters
         static readonly string _htmlContentDir = Path.Combine(
             Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)),
             "KnowledgebaseFiles\\Content");
-
-        static Microsoft.Office.Interop.Word.Application objWord;
 
         // Path to upload files "Uploaded"
         static string strPathToUpload;
@@ -40,8 +41,8 @@ namespace KBDocumentConverterService.Converters
         // For filtered HTML Output
         static object fltDocFormat = 10;
 
-        // Is just to skeep the parameters which are passed as boject reference, these 
-        // are seems to be optional parameters
+        // Placeholder values for parameters in Word object that will not
+        // be used during conversions
         static object missing = System.Reflection.Missing.Value;
 
         static object readOnly = false;
@@ -52,7 +53,7 @@ namespace KBDocumentConverterService.Converters
         // List of files that have already been converted to html
         static List<string> _htmlKnowledgebaseFiles = new List<string>();
 
-        // List of file contained in the folder structure that represents
+        // List of files contained in the folder structure that represents
         // a knowledgebase; these files will be converted to html to be
         // displayed on a website.
         static List<string> _docKnowledgebaseFiles = new List<string>();
@@ -73,62 +74,99 @@ namespace KBDocumentConverterService.Converters
                 object FileToSave = strPathToConvert + "\\" + strFileName + ".htm";
 
                 if (!File.Exists((string)FileToSave))
-                {
-                    StreamWriter sw = File.AppendText("C:\\Service.txt");
-                    string mess = FileToSave + "\n";
-                    sw.WriteLine(mess);
-                    sw.Flush();
-                    sw.Close();
-
-                    objWord = new Microsoft.Office.Interop.Word.Application();
-                    
+                { 
                     if (strExt.ToLower().Equals(".doc") || strExt.ToLower().Equals(".docx"))
                     {
-                        //open the file internally in word. In the method all the parameters should be passed by object reference
-                        objWord.Documents.Open(ref FileName, ref readOnly, ref missing, ref missing, ref missing,
-                            ref missing, ref missing, ref  missing, ref missing, ref missing, ref isVisible,
-                            ref missing, ref missing, ref missing, ref missing, ref missing);
+                        Microsoft.Office.Interop.Word._Application objWord; objWord = new Microsoft.Office.Interop.Word.Application();
 
                         //Do the background activity
                         objWord.Visible = false;
-                        Microsoft.Office.Interop.Word.Document oDoc = objWord.ActiveDocument;
+
+                        //open the file internally in word. In the method all the parameters should be passed by object reference
+                        Microsoft.Office.Interop.Word.Document oDoc = objWord.Documents.Open(ref FileName, ref readOnly, ref missing, 
+                            ref missing, ref missing, ref missing, ref missing, ref  missing, ref missing, ref missing, 
+                            ref isVisible, ref missing, ref missing, ref missing, ref missing, ref missing);
+
+                        oDoc.Activate();
 
                         //Save to Html format
                         oDoc.SaveAs(ref FileToSave, ref fltDocFormat, ref missing, ref missing, ref missing, ref missing,
                         ref missing, ref missing, ref missing, ref missing, ref missing, ref missing, ref missing, ref missing,
                         ref missing, ref missing);
-                    }
 
-                    if (File.Exists((string) FileToSave))
+                        //Close/quit word
+                        objWord.Quit();
+
+                        //Add file to list of existing html files.
+                        _htmlKnowledgebaseFiles.Add((string)FileToSave);
+
+                        FixEncodingErrors((string)FileToSave);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                Logger.LogError(message);
+            }
+        }
+
+        /// <summary>
+        /// Method to fix error that manifest in rendered html
+        /// due to Office's method of converting documents to 
+        /// html.
+        /// </summary>
+        /// <param name="filePath">Path of file to fix.</param>
+        static void FixEncodingErrors(string filePath)
+        {
+            bool isFixed = false;
+            int attempts = 0;
+
+            // Check file exist.
+            if(File.Exists(filePath))
+            {
+                while (!isFixed && attempts <= 3)
+                {
+                    try
                     {
-                        string dir = System.IO.Path.GetDirectoryName((string)FileToSave);
+                        // Get directory file is contained in.
+                        string dir = System.IO.Path.GetDirectoryName(filePath);
+                        
+                        // Read file contents
+                        string content = File.ReadAllText(filePath, Encoding.GetEncoding(1252));
+
+                        // Get relative directory so that images etc. display in rendered page.
                         string relativeDir = dir.Replace(dir.Substring(0, dir.IndexOf("KnowledgebaseFiles")), "../../../").Replace("\\", "/");
-                        string content = File.ReadAllText((string)FileToSave, Encoding.GetEncoding(1252));
                         content = content.Replace("src=\"", "src=\"" + relativeDir + "/");
+
+                        // Correct issues with headers.
                         content = content.Replace("h3\r\n\t{", "#article h3\r\n\t{");
 
-                        using (FileStream stream = new FileStream((string)FileToSave, FileMode.Open))
+                        // Write corrections.
+                        using (FileStream stream = new FileStream(filePath, FileMode.Open))
                         {
                             using (StreamWriter writer = new StreamWriter(stream))
                             {
                                 writer.Write(content);
                             }
                         }
+
+                        isFixed = true;
+                    }
+                    catch (IOException ioEX)
+                    {
+                        string message = "There has been an input/output error, check permissions for containing directory\n" + 
+                            ioEX.Message + "\n" + ioEX.InnerException + "\n" + ioEX.Source + "\n" + ioEX.StackTrace;
+                        Logger.LogError(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                        Logger.LogError(message);
                     }
 
-                    //Close/quit word
-                    ((_Application)objWord).Quit();
-
-                    _htmlKnowledgebaseFiles.Add((string)FileToSave);
+                    attempts++;
                 }
-            }
-            catch (Exception ex)
-            {
-                StreamWriter sw = File.AppendText("C:\\Service.txt");
-                string mess = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
-                sw.WriteLine(mess);
-                sw.Flush();
-                sw.Close();
             }
         }
 
@@ -138,17 +176,59 @@ namespace KBDocumentConverterService.Converters
 
             if (!Directory.Exists(_docKnowledgeBaseDir))
             {
-                Directory.CreateDirectory(_docKnowledgeBaseDir);
+                try
+                {
+                    Directory.CreateDirectory(_docKnowledgeBaseDir);
+                }
+                catch (IOException ioEX)
+                {
+                    string message = "There has been an input/output error, check permissions for containing directory\n" + 
+                        ioEX.Message + "\n" + ioEX.InnerException + "\n" + ioEX.Source + "\n" + ioEX.StackTrace;
+                    Logger.LogError(message);
+                }
+                catch (Exception ex)
+                {
+                    string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                    Logger.LogError(message);
+                }
             }
 
             if (!Directory.Exists(_htmlKnowledgeBaseDir))
             {
-                Directory.CreateDirectory(_htmlKnowledgeBaseDir);
+                try
+                {
+                    Directory.CreateDirectory(_htmlKnowledgeBaseDir);
+                }
+                catch (IOException ioEX)
+                {
+                    string message = "There has been an input/output error, check permissions for containing directory\n" +
+                        ioEX.Message + "\n" + ioEX.InnerException + "\n" + ioEX.Source + "\n" + ioEX.StackTrace;
+                    Logger.LogError(message);
+                }
+                catch (Exception ex)
+                {
+                    string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                    Logger.LogError(message);
+                }
             }
 
             if (!Directory.Exists(_htmlContentDir))
             {
-                Directory.CreateDirectory(_htmlContentDir);
+                try
+                {
+                    Directory.CreateDirectory(_htmlContentDir);
+                }
+                catch (IOException ioEX)
+                {
+                    string message = "There has been an input/output error, check permissions for containing directory\n" +
+                        ioEX.Message + "\n" + ioEX.InnerException + "\n" + ioEX.Source + "\n" + ioEX.StackTrace;
+                    Logger.LogError(message);
+                }
+                catch (Exception ex)
+                {
+                    string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                    Logger.LogError(message);
+                }
             }
         }
 
@@ -194,19 +274,25 @@ namespace KBDocumentConverterService.Converters
             }
             catch (UnauthorizedAccessException uaEx)
             {
-                // To implement
+                string message = @"There was an Unauthorized Access error; perhaps check read/write permissions or
+                                   group policy settings for applications install folder"  
+                    + "\n" + uaEx.Message + "\n" + uaEx.InnerException + "\n" + uaEx.Source + "\n" + uaEx.StackTrace;
+
+                Logger.LogError(message);
             }
             catch (IOException ioEx)
             {
-                // To implement
+                string message = @"There was an input/output error; perhaps check read/write permissions or
+                                   group policy settings for applications install folder"  
+                    + "\n" + ioEx.Message + "\n" + ioEx.InnerException + "\n" + ioEx.Source + "\n" + ioEx.StackTrace;
+
+                Logger.LogError(message);
             }
             catch (Exception ex)
             {
-                StreamWriter sw = File.AppendText("C:\\Service.txt");
-                string mess = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
-                sw.WriteLine(mess);
-                sw.Flush();
-                sw.Close();
+                string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+
+                Logger.LogError(message);
             }
 
             // Get all files in the "DOCKnowledgeBase" folder.
@@ -245,10 +331,10 @@ namespace KBDocumentConverterService.Converters
         /// Traverse the directory structure present in provided DirectoryModel and
         /// create HTML that will represent the directories and files that are found.
         /// </summary>
-        /// <param name="directory"></param>
-        /// <param name="listFileDoc"></param>
-        /// <param name="directoryDiv"></param>
-        /// <param name="isSourceDir"></param>
+        /// <param name="directory">Directory containing subdirectories and articles.</param>
+        /// <param name="listFileDoc">Object representing HTML document.</param>
+        /// <param name="directoryDiv">Container representing div that will contain categories and articles.</param>
+        /// <param name="isSourceDir">Bool representing whether directoryDiv, is parent directory of article directory structure.</param>
         static void GenerateHTML(DirectoryModel directory, HtmlDocument listFileDoc, HtmlNode directoryContainerDiv, bool isSourceDir, ref int index)
         {
 
@@ -260,11 +346,13 @@ namespace KBDocumentConverterService.Converters
             // Create div that will hold folder icon and directory name
             HtmlNode directoryDiv = listFileDoc.CreateElement("div");
 
-            // Set div attributes
+            // Container for categories (subdirectories) and article links.
             directoryDiv.SetAttributeValue("class", "directory");
             directoryDiv.SetAttributeValue("onclick", "expandFileList(this.id)");
             directoryDiv.SetAttributeValue("id", encryptedPath);
 
+            // Check whether or not current directory, is the parent node
+            // of article directory structure (as this is first container to be seen)
             string style = isSourceDir ? String.Format("z-index: {0};", index) : String.Format("z-index: -{0}; display: none", index);
             directoryDiv.SetAttributeValue("style", style);
 
@@ -279,6 +367,8 @@ namespace KBDocumentConverterService.Converters
             categoryRule.SetAttributeValue("class", "header-rule");
             directoryDiv.AppendChild(categoryRule);
 
+            // Process subdirectories' contents and generate relevant
+            // html.
             if (directory.Subdirectories.Count > 0)
             {
                 foreach (DirectoryModel subdirectory in directory.Subdirectories)
@@ -304,6 +394,7 @@ namespace KBDocumentConverterService.Converters
                 }
             }
 
+            // Container for links to show articles.
             HtmlNode clearFloatDiv = listFileDoc.CreateElement("div");
             clearFloatDiv.SetAttributeValue("style", "clear: both; width: 100%;");
             directoryDiv.AppendChild(clearFloatDiv);
@@ -319,6 +410,8 @@ namespace KBDocumentConverterService.Converters
             articleRule.SetAttributeValue("class", "header-rule");
             directoryDiv.AppendChild(articleRule);
 
+            // Check that html files exist in directory and create representative
+            // html links.
             if (directory.Files.Keys.Count > 0)
             {
                 HtmlNode linkContainerNode = listFileDoc.CreateElement("ul");
@@ -350,8 +443,10 @@ namespace KBDocumentConverterService.Converters
             directoryContainerDiv.AppendChild(directoryDiv);
         }
 
-        // Create and populate html file to represent the existing knowledgebase 
-        // file and directory structure.
+        /// <summary>
+        /// Create and populate html file to represent the existing knowledgebase 
+        /// file and directory structure.
+        /// </summary>
         static void CreateContentList()
         {
             try
@@ -392,7 +487,13 @@ namespace KBDocumentConverterService.Converters
                 // Create instance of DirectoryModel which will hold knowledgebase directory and file structure
                 DirectoryModel rootDirectory = DirectoryModel.GenerateDirectoryStructure(_htmlKnowledgeBaseDir);
 
+                // Number that is used to create a unique identifier for each
+                // knowledgebase category's containing div; it is the div's
+                // z-index value.
                 int index = 0;
+
+                // Whether or not the directory that is being process is
+                // the top level directory for knowledgebase directory tree.
                 bool isSourceDir = true;
                 GenerateHTML(rootDirectory, listFileDoc, listFileDoc.DocumentNode, isSourceDir, ref index);
 
@@ -400,11 +501,8 @@ namespace KBDocumentConverterService.Converters
             }
             catch (Exception ex)
             {
-                StreamWriter sw = File.AppendText("C:\\Service.txt");
-                string mess = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
-                sw.WriteLine(mess);
-                sw.Flush();
-                sw.Close();
+                string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                Logger.LogError(message);
             }
         }
 
@@ -419,11 +517,8 @@ namespace KBDocumentConverterService.Converters
             }
             catch (Exception ex)
             {
-                StreamWriter sw = File.AppendText("C:\\Service.txt");
-                string mess = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
-                sw.WriteLine(mess);
-                sw.Flush();
-                sw.Close();
+                string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
+                Logger.LogError(message);
             }
         }
     }

@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("ServiceInstaller")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("home")]
+[assembly: AssemblyCompany("philspain")]
 [assembly: AssemblyProduct("ServiceInstaller")]
-[assembly: AssemblyCopyright("Copyright © home 2012")]
+[assembly: AssemblyCopyright("Copyright © philspain 2013")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

@@ -1,4 +1,4 @@
-﻿namespace KBDocumentConverterService
+﻿namespace KBDocumentConverter
 {
     partial class Service1
     {

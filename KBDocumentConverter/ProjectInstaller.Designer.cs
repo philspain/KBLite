@@ -1,4 +1,4 @@
-﻿namespace KBDocumentConverterService
+﻿namespace KBDocumentConverter
 {
     partial class ProjectInstaller
     {
@@ -41,8 +41,8 @@
             // 
             this.serviceInstaller1.Description = "Converts Office word document formats to HTML files to be displayed in a Knowledg" +
     "ebase website";
-            this.serviceInstaller1.DisplayName = "KBDocumentConverterService";
-            this.serviceInstaller1.ServiceName = "KBDocumentConverterService";
+            this.serviceInstaller1.DisplayName = "KBDocumentConverter";
+            this.serviceInstaller1.ServiceName = "KBDocumentConverter";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
             // ProjectInstaller

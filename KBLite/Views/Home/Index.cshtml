@@ -10,7 +10,9 @@
         <div id="left" class="side-container"></div>
         <div id="content">@Html.Raw(ViewBag.contentHtml)</div>
         <div id="right" class="side-container">
-            <div id="back-button" onmouseover="updateNavButton(this.id)" onclick="moveBack()">Back</div>
+            <div id="back-button" onmouseover="updateNavButton(this.id)" 
+                                  onmouseout="updateNavButton(this.id)"
+                                  onclick="moveBack()">Back</div>
         </div>
     </div>
 </div>
