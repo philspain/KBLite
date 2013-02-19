@@ -1,7 +1,7 @@
 ﻿var clickedPages = new Array();
 
 function positionContent() {
-    $('#content-container').height($(window).height() - 100)
+    $('#content-container').height($(window).height() - 102)
 
     var directoryWidth = $('.directory:first').width();
     var subdirectoryWidth = $('.subdirectory:first').width();
@@ -34,48 +34,26 @@ function positionContent() {
     });
 }
 
-function positionSideBars() {
-    var windowWidth = $('#content-container').width();
-    var contentWidth = $('#content').outerWidth();
-    remainingSpace = windowWidth - contentWidth;
-    var sideDivWidth = Math.floor(remainingSpace / 2);
-
-    $('#left').css('width', sideDivWidth + 'px');
-    $('#right').css('width', (remainingSpace - sideDivWidth) + 'px');
-}
-
 function Initialise() {
     positionContent();
-    //positionSideBars();
+}
 
-    //$(window).resize(positionSideBars);
+function setContent(id) {
+    $.post(getContentUrl + '?id=' + id, null,
+            function (data) {
+                //$('#article').html(data);
+                var articleFrame = window.frames[0].document;
+                articleFrame.open();
+                articleFrame.write(data);
+                articleFrame.close();
+                bringToFront('article-container');
+            }, 'text');
 }
 
 $(document).ready(Initialise);
 
-function expandFileList(id) {
-
-    var imageElement = $('#' + id).find('img');
-    var hiddenElement = $('#' + id + '-container');
-
-    if (hiddenElement.css('display') == 'none') {
-        hiddenElement.css('display', 'block');
-        imageElement.attr('src', 'Content/Images/Folder-open-icon.png');
-    }
-    else {
-        hiddenElement.css('display', 'none');
-        imageElement.attr('src', 'Content/Images/Folder-icon.png');
-    }
-}
-
-function setContent(id) {
-    $.post('/Content/GetContent/' + id, null,
-                function (data) {
-                    $('#article').html(data);
-                    bringToFront('article-container');
-                }, 'text');
-}
-
+// bring relevant article/directory into view when clicked
+// by user.
 function bringToFront(elem) {
 
     if (clickedPages.length > 0) {
@@ -94,7 +72,7 @@ function bringToFront(elem) {
 
     var targetElem = $('#' + id);
 
-    var zIndex = elem == 'article-container' ? 1000 : -parseInt(targetElem.css('z-index'));
+    var zIndex = elem == 'article-container' ? 10000 : -parseInt(targetElem.css('z-index'));
 
     targetElem.css('z-index', zIndex);
 
@@ -102,7 +80,9 @@ function bringToFront(elem) {
         targetElem.css('display', 'block');
 
         if (id == 'article-container') {
-            $('#article-container').height($('#article').height());
+
+            $('#article-container').height(window.frames[0].document.offsetHeight);
+            $('#article').height(window.frames[0].document.body.offsetHeight + 50);
         }
     }
     else {
@@ -114,6 +94,14 @@ function bringToFront(elem) {
     $('#back-button').css('visibility', 'visible');
 }
 
+// move backward through multiple views
+function rollBack(id) {
+    while ((clickedPages[0] != id) && clickedPages.length != 0) {
+        moveBack();
+    }
+}
+
+// move a single step backward through clicked views
 function moveBack() {
     var id = clickedPages.shift();
     var previousElem = $('#' + id);
@@ -141,6 +129,8 @@ function moveBack() {
     }
 }
 
+// Change colour on navBar that appears on the right of the
+// screen.
 function updateNavButton(id) {
     var navButton = $('#' + id);
     var colour = rgbToHex(navButton.css('background-color')).toUpperCase();
@@ -153,6 +143,8 @@ function updateNavButton(id) {
     }
 }
 
+// Convert rgb value to hex to be correctly used
+// in colour comparisons.
 function rgbToHex(rgb) {
     if (rgb.search("rgb") == -1) {
         return rgb;

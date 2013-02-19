@@ -16,7 +16,7 @@ namespace KBDocumentConverter.Converters
     public class ConvertToHtml
     {
         // Directory for files converted from Word docs to Html.
-        static readonly string _htmlKnowledgeBaseDir = 
+        static readonly string _htmlKnowledgeBaseDir =
             Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)),
             "KnowledgebaseFiles\\HTML");
 
@@ -31,6 +31,8 @@ namespace KBDocumentConverter.Converters
         static readonly string _htmlContentDir = Path.Combine(
             Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)),
             "KnowledgebaseFiles\\Content");
+
+        static readonly string _listFilePath = _htmlContentDir + "\\content_list.htm";
 
         // Path to upload files "Uploaded"
         static string strPathToUpload;
@@ -74,17 +76,17 @@ namespace KBDocumentConverter.Converters
                 object FileToSave = strPathToConvert + "\\" + strFileName + ".htm";
 
                 if (!File.Exists((string)FileToSave))
-                { 
+                {
                     if (strExt.ToLower().Equals(".doc") || strExt.ToLower().Equals(".docx"))
                     {
-                        Microsoft.Office.Interop.Word._Application objWord; objWord = new Microsoft.Office.Interop.Word.Application();
+                        Microsoft.Office.Interop.Word._Application objWord = new Microsoft.Office.Interop.Word.Application();
 
-                        //Do the background activity
+                        // Process in background
                         objWord.Visible = false;
 
                         //open the file internally in word. In the method all the parameters should be passed by object reference
-                        Microsoft.Office.Interop.Word.Document oDoc = objWord.Documents.Open(ref FileName, ref readOnly, ref missing, 
-                            ref missing, ref missing, ref missing, ref missing, ref  missing, ref missing, ref missing, 
+                        Microsoft.Office.Interop.Word.Document oDoc = objWord.Documents.Open(ref FileName, ref readOnly, ref missing,
+                            ref missing, ref missing, ref missing, ref missing, ref  missing, ref missing, ref missing,
                             ref isVisible, ref missing, ref missing, ref missing, ref missing, ref missing);
 
                         oDoc.Activate();
@@ -120,27 +122,39 @@ namespace KBDocumentConverter.Converters
         static void FixEncodingErrors(string filePath)
         {
             bool isFixed = false;
-            int attempts = 0;
+            string message = String.Empty;
 
             // Check file exist.
-            if(File.Exists(filePath))
+            if (File.Exists(filePath))
             {
-                while (!isFixed && attempts <= 3)
+                while (!isFixed)
                 {
                     try
                     {
                         // Get directory file is contained in.
                         string dir = System.IO.Path.GetDirectoryName(filePath);
-                        
+
                         // Read file contents
                         string content = File.ReadAllText(filePath, Encoding.GetEncoding(1252));
 
                         // Get relative directory so that images etc. display in rendered page.
-                        string relativeDir = dir.Replace(dir.Substring(0, dir.IndexOf("KnowledgebaseFiles")), "../../../").Replace("\\", "/");
+                        string relativeDir = dir.Replace(dir.Substring(0, dir.IndexOf("KnowledgebaseFiles")), "/KBLite/").Replace("\\", "/");
                         content = content.Replace("src=\"", "src=\"" + relativeDir + "/");
 
                         // Correct issues with headers.
-                        content = content.Replace("h3\r\n\t{", "#article h3\r\n\t{");
+                        //content = content.Replace("h1\r\n\t{", "#article h1\r\n\t{");
+
+                        //content = content.Replace("h2\r\n\t{", "#article h2\r\n\t{");
+
+                        //content = content.Replace("h3\r\n\t{", "#article h3\r\n\t{");
+
+                        //content = content.Replace("h4\r\n\t{", "#article h4\r\n\t{");
+
+                        //content = content.Replace("h5\r\n\t{", "#article h5\r\n\t{");
+
+                        //content = content.Replace("h6\r\n\t{", "#article h6\r\n\t{");
+
+                        //content = content.Replace("p\r\n\t{", "#article p\r\n\t{");
 
                         // Write corrections.
                         using (FileStream stream = new FileStream(filePath, FileMode.Open))
@@ -155,18 +169,17 @@ namespace KBDocumentConverter.Converters
                     }
                     catch (IOException ioEX)
                     {
-                        string message = "There has been an input/output error, check permissions for containing directory\n" + 
+                        message = "There has been an input/output error, check permissions for containing directory\n" +
                             ioEX.Message + "\n" + ioEX.InnerException + "\n" + ioEX.Source + "\n" + ioEX.StackTrace;
-                        Logger.LogError(message);
                     }
                     catch (Exception ex)
                     {
-                        string message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
-                        Logger.LogError(message);
+                        message = ex.Message + "\n" + ex.InnerException + "\n" + ex.Source + "\n" + ex.StackTrace;
                     }
-
-                    attempts++;
                 }
+
+                if(message != String.Empty)
+                    Logger.LogError(message);
             }
         }
 
@@ -182,7 +195,7 @@ namespace KBDocumentConverter.Converters
                 }
                 catch (IOException ioEX)
                 {
-                    string message = "There has been an input/output error, check permissions for containing directory\n" + 
+                    string message = "There has been an input/output error, check permissions for containing directory\n" +
                         ioEX.Message + "\n" + ioEX.InnerException + "\n" + ioEX.Source + "\n" + ioEX.StackTrace;
                     Logger.LogError(message);
                 }
@@ -275,7 +288,7 @@ namespace KBDocumentConverter.Converters
             catch (UnauthorizedAccessException uaEx)
             {
                 string message = @"There was an Unauthorized Access error; perhaps check read/write permissions or
-                                   group policy settings for applications install folder"  
+                                   group policy settings for applications install folder"
                     + "\n" + uaEx.Message + "\n" + uaEx.InnerException + "\n" + uaEx.Source + "\n" + uaEx.StackTrace;
 
                 Logger.LogError(message);
@@ -283,7 +296,7 @@ namespace KBDocumentConverter.Converters
             catch (IOException ioEx)
             {
                 string message = @"There was an input/output error; perhaps check read/write permissions or
-                                   group policy settings for applications install folder"  
+                                   group policy settings for applications install folder"
                     + "\n" + ioEx.Message + "\n" + ioEx.InnerException + "\n" + ioEx.Source + "\n" + ioEx.StackTrace;
 
                 Logger.LogError(message);
@@ -308,7 +321,7 @@ namespace KBDocumentConverter.Converters
             }
         }
 
-        // Traverse list of files to be converted and convert.
+        // Traverse list of files and convert.
         static void ConvertFiles()
         {
             foreach (string file in _docKnowledgebaseFiles)
@@ -335,7 +348,8 @@ namespace KBDocumentConverter.Converters
         /// <param name="listFileDoc">Object representing HTML document.</param>
         /// <param name="directoryDiv">Container representing div that will contain categories and articles.</param>
         /// <param name="isSourceDir">Bool representing whether directoryDiv, is parent directory of article directory structure.</param>
-        static void GenerateHTML(DirectoryModel directory, HtmlDocument listFileDoc, HtmlNode directoryContainerDiv, bool isSourceDir, ref int index)
+        static void GenerateHTML(DirectoryModel directory, HtmlDocument listFileDoc, HtmlNode directoryContainerDiv, 
+            bool isSourceDir, ref int index, string categoriesUrlText)
         {
 
             // Hash directory path to be used as unique identifier for
@@ -348,7 +362,6 @@ namespace KBDocumentConverter.Converters
 
             // Container for categories (subdirectories) and article links.
             directoryDiv.SetAttributeValue("class", "directory");
-            directoryDiv.SetAttributeValue("onclick", "expandFileList(this.id)");
             directoryDiv.SetAttributeValue("id", encryptedPath);
 
             // Check whether or not current directory, is the parent node
@@ -356,16 +369,49 @@ namespace KBDocumentConverter.Converters
             string style = isSourceDir ? String.Format("z-index: {0};", index) : String.Format("z-index: -{0}; display: none", index);
             directoryDiv.SetAttributeValue("style", style);
 
-            HtmlNode directoryHeader = listFileDoc.CreateElement("h3");
-            directoryHeader.SetAttributeValue("class", "directory-headers");
+            // div to hold category header and links to roll back to previous views
+            HtmlNode directoryCategoryContainer = listFileDoc.CreateElement("div");
+            directoryCategoryContainer.SetAttributeValue("id", "category-container");
 
+            // header for category section of directory div
+            HtmlNode directoryHeader = listFileDoc.CreateElement("h2");
+            directoryHeader.SetAttributeValue("class", "category-headers");
+
+            // add text node for header
             HtmlNode categoryHeaderText = listFileDoc.CreateTextNode("Categories");
             directoryHeader.AppendChild(categoryHeaderText);
-            directoryDiv.AppendChild(directoryHeader);
+            directoryCategoryContainer.AppendChild(directoryHeader);
+
+            // create div to hold category urls used to roll back to a
+            //previous view
+            HtmlNode categoryUrlDiv = listFileDoc.CreateElement("div");
+            categoryUrlDiv.SetAttributeValue("class", "visited-categories-container");
+
+            // add category url text
+            HtmlNode categoryUrlText = listFileDoc.CreateTextNode(categoriesUrlText);
+            categoryUrlDiv.AppendChild(categoryUrlText); 
+            directoryCategoryContainer.AppendChild(categoryUrlDiv);
+
+            // add container for category header and links for rolling back to particular views
+            // to the directory container div
+            directoryDiv.AppendChild(directoryCategoryContainer);
 
             HtmlNode categoryRule = listFileDoc.CreateElement("hr");
             categoryRule.SetAttributeValue("class", "header-rule");
             directoryDiv.AppendChild(categoryRule);
+
+            // update current url string to be used by subordinate categories
+            string currentUrlName = Path.GetFileName(directory.Path);
+
+            if (categoriesUrlText == String.Empty)
+            {
+                categoriesUrlText += @"<a href='#' onclick='rollBack("""")'>Home</a>";
+            }
+            else
+            {
+                categoriesUrlText += @" > <a href='#' onclick='rollBack(""" + encryptedPath + @""")'>" +
+                                    currentUrlName + "</a>";
+            }
 
             // Process subdirectories' contents and generate relevant
             // html.
@@ -390,7 +436,7 @@ namespace KBDocumentConverter.Converters
 
                     directoryDiv.AppendChild(subDirectoryDiv);
 
-                    GenerateHTML(subdirectory, listFileDoc, directoryContainerDiv, isSourceDir, ref index);
+                    GenerateHTML(subdirectory, listFileDoc, directoryContainerDiv, isSourceDir, ref index, categoriesUrlText);
                 }
             }
 
@@ -399,8 +445,8 @@ namespace KBDocumentConverter.Converters
             clearFloatDiv.SetAttributeValue("style", "clear: both; width: 100%;");
             directoryDiv.AppendChild(clearFloatDiv);
 
-            HtmlNode articleHeader = listFileDoc.CreateElement("h3");
-            articleHeader.SetAttributeValue("class", "directory-headers");
+            HtmlNode articleHeader = listFileDoc.CreateElement("h2");
+            articleHeader.SetAttributeValue("class", "article-headers");
 
             HtmlNode articleHeaderText = listFileDoc.CreateTextNode("Articles");
             articleHeader.AppendChild(articleHeaderText);
@@ -451,37 +497,23 @@ namespace KBDocumentConverter.Converters
         {
             try
             {
-                string listFilePath = String.Empty;
-
-                // If no content list file exists, create it. if one does exist, create an alternative, this version 
-                // will be pulled up by the site, and renamed to replace the orginal content list file. This is to ensure
-                // there are no errors with the site and this class trying to open the same file.
-                if (!File.Exists(_htmlContentDir + "\\content_list.htm"))
-                {
-                    FileStream fs = File.Create(_htmlContentDir + "\\content_list.htm");
-                    listFilePath = _htmlContentDir + "\\content_list.htm";
-                    fs.Close();
-                }
-                else
-                {
-                    FileStream fs = File.Create(_htmlContentDir + "\\content_list_new.htm");
-                    listFilePath = _htmlContentDir + "\\content_list_new.htm";
-                    fs.Close();
-                }
-
                 //Create html document
                 HtmlDocument listFileDoc = new HtmlDocument();
-                listFileDoc.Load(listFilePath);
 
                 HtmlNode articleContainerDiv = listFileDoc.CreateElement("div");
                 articleContainerDiv.SetAttributeValue("id", "article-container");
                 articleContainerDiv.SetAttributeValue("class", "directory");
                 articleContainerDiv.SetAttributeValue("style", "display: none");
 
-                HtmlNode articleDiv = listFileDoc.CreateElement("div");
-                articleDiv.SetAttributeValue("id", "article");
+                HtmlNode articleFrame = listFileDoc.CreateElement("iframe");
+                articleFrame.SetAttributeValue("id", "article");
+                articleFrame.SetAttributeValue("frameBorder", "0");
+                articleFrame.SetAttributeValue("hspace", "0");
+                articleFrame.SetAttributeValue("vspace", "0");
+                articleFrame.SetAttributeValue("marginheight", "0");
+                articleFrame.SetAttributeValue("marginwidth", "0");
 
-                articleContainerDiv.AppendChild(articleDiv);
+                articleContainerDiv.AppendChild(articleFrame);
                 listFileDoc.DocumentNode.AppendChild(articleContainerDiv);
 
                 // Create instance of DirectoryModel which will hold knowledgebase directory and file structure
@@ -495,9 +527,18 @@ namespace KBDocumentConverter.Converters
                 // Whether or not the directory that is being process is
                 // the top level directory for knowledgebase directory tree.
                 bool isSourceDir = true;
-                GenerateHTML(rootDirectory, listFileDoc, listFileDoc.DocumentNode, isSourceDir, ref index);
+                string categoriesUrlText = String.Empty; 
+                GenerateHTML(rootDirectory, listFileDoc, listFileDoc.DocumentNode, isSourceDir, ref index, categoriesUrlText);
 
-                listFileDoc.Save(listFilePath);
+                // If no content list file exists, create it. if one does exist, create an alternative, this version 
+                // will be pulled up by the site, and renamed to replace the orginal content list file. This is to ensure
+                // there are no errors with the site and this class trying to open the same file.
+                if (File.Exists(_listFilePath))
+                {
+                    File.Delete(_listFilePath);
+                }
+
+                listFileDoc.Save(_listFilePath);
             }
             catch (Exception ex)
             {
@@ -506,11 +547,18 @@ namespace KBDocumentConverter.Converters
             }
         }
 
+        static void ClearLists()
+        {
+            _htmlKnowledgebaseFiles.Clear();
+            _docKnowledgebaseFiles.Clear();
+        }
+
         public static void RunConversion()
         {
             try
             {
                 InitialiseFolders();
+                ClearLists();
                 InitialiseFileCollections();
                 ConvertFiles();
                 CreateContentList();

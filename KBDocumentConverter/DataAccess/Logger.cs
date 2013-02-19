@@ -43,11 +43,11 @@ namespace KBDocumentConverter.DataAccess
         /// </summary>
         static private void CheckDirectoryExists()
         {
-            if (!Directory.Exists("logs"))
+            if (!Directory.Exists(dirName))
             {
                 try
                 {
-                    Directory.CreateDirectory("logs");
+                    Directory.CreateDirectory(dirName);
                 }
                 catch { }
             }
@@ -60,12 +60,8 @@ namespace KBDocumentConverter.DataAccess
         {
             if (!File.Exists(errorFile))
             {
-                try
-                {
                     FileStream fs = File.Create(errorFile);
                     fs.Close();
-                }
-                catch { }
             }
         }
     }

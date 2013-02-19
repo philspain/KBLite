@@ -13,8 +13,7 @@ namespace KBLite.Controllers
         //
         // GET: /Content/
         [HttpPost]
-        [OutputCache(Duration = 120, VaryByParam = "id")]
-        public string GetContent(string id)
+        public ActionResult GetContent(string id)
         {
             // Decrypt string to get filepath.
             string file = EncryptStrings.DecryptAESString(id);
@@ -26,7 +25,7 @@ namespace KBLite.Controllers
                 content = System.IO.File.ReadAllText(file);
             }
 
-            return content;
+            return Content(content);
         }
     }
 }
